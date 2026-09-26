@@ -26,11 +26,39 @@ local categoryOptionsTemp = {
     { text = lang.get("all"), data = "" }
 }
 
+-- Adds an element to the column with the least amount of children,
+-- so that mods are spread out evenly across the columns.
+local function addToShortestColumn(columns, el)
+    local target = columns[1]
+    for i = 2, #columns do
+        if #columns[i].children < #target.children then
+            target = columns[i]
+        end
+    end
+    target:addChild(el)
+    return target
+end
+
 local function generateModColumns(self)
     local listcount = math.max(1, math.min(6, math.floor(love.graphics.getWidth() / 350)))
     if self.listcount == listcount then
         return nil
     end
+
+    -- The columns are recreated every time the amount of columns changes (window resize,
+    -- UI scale change), so the mods that are currently displayed have to be taken out of
+    -- the old columns, to be moved over to the new ones further down.
+    local items = {}
+    local prevColumns = self.children
+    for i = 1, #prevColumns do
+        local column = prevColumns[i]
+        while #column.children > 0 do
+            local item = column.children[1]
+            column:removeChild(item)
+            items[#items + 1] = item
+        end
+    end
+
     self.listcount = listcount
 
     local lists = {}
@@ -42,6 +70,12 @@ local function generateModColumns(self)
             },
             cacheable = false
         }):with(uiu.fillWidth(1 / listcount + 1)):with(uiu.at((i == 1 and 0 or 1) + (i - 1) / listcount, 0)):as("mods" .. tostring(i))
+    end
+
+    -- Redistribute the mods that are already loaded, so that the amount of mods shown
+    -- follows the new amount of columns.
+    for i = 1, #items do
+        addToShortestColumn(lists, items[i])
     end
 
     return lists
